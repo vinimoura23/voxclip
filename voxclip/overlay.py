@@ -1050,9 +1050,15 @@ class OverlayWindow:
             self.on_stop()
 
     def _on_settings_click(self, widget):
-        """Opens the Settings Window (singleton — reuses existing window)."""
-        if self.on_cancel:
-            self.on_cancel()
+        """Opens the Settings Window (singleton — reuses existing window).
+
+        If recording is active when ⚙ is clicked, the recorder keeps running in
+        the background (the pill is just hidden). Closing settings without saving
+        (Cancel / X / Apply then close) restores the pill and the recording
+        continues from where it left off. Clicking Save cancels the recording
+        because the configuration (e.g. model) may have changed.
+        """
+        was_recording = (self._state == OverlayState.RECORDING)
 
         # If we're in history and came from a settings window, just go back to it
         # instead of opening a new one — this prevents duplicate windows.
@@ -1075,9 +1081,25 @@ class OverlayWindow:
             except Exception:
                 self._settings_window = None
 
+        if was_recording:
+            # Keep the recorder running — just hide the pill so the normal GTK
+            # settings window (below the overlay layer) is actually visible.
+            self.window.hide()
+        else:
+            if self.on_cancel:
+                self.on_cancel()
+
         from .settings import SettingsWindow
 
+        # Mutable flag: True only when the user explicitly clicks Save
+        # (not Cancel / X / Apply-then-close).
+        _save_clicked = [False]
+
         def _on_save():
+            _save_clicked[0] = True
+            if was_recording and self.on_cancel:
+                # Cancel the ongoing recording; config may have changed
+                self.on_cancel()
             if self.on_settings_saved:
                 self.on_settings_saved()
 
@@ -1095,8 +1117,17 @@ class OverlayWindow:
 
         self._settings_window = SettingsWindow(
             on_save_callback=_on_save,
-            on_history_callback=_on_history
+            on_history_callback=_on_history,
         )
+
+        def _on_settings_closed(_win):
+            """Called when the settings window is destroyed for any reason."""
+            if was_recording and not _save_clicked[0]:
+                # User dismissed settings without saving — restore the recording pill.
+                # The recorder has been running all along; just make it visible again.
+                self.window.show()
+
+        self._settings_window.window.connect("destroy", _on_settings_closed)
         self._settings_window.show()
 
     def _on_done_timeout(self) -> bool:
