@@ -548,6 +548,10 @@ class OverlayWindow:
         # Enforce premium compact window layout strictly
         self._enforce_size(410, 54)
         self.window.show_all()
+        # window.show_all() reveals ALL children — re-hide the inactive boxes
+        self.transcribing_box.hide()
+        self.done_box.hide()
+        self.history_box.hide()
 
         self._start_animation()
 
@@ -650,6 +654,10 @@ class OverlayWindow:
 
         self._enforce_size(520, min(120 + len(entries) * 55, 500))
         self.window.show_all()
+        # window.show_all() reveals ALL children — re-hide the inactive boxes
+        self.recording_box.hide()
+        self.transcribing_box.hide()
+        self.done_box.hide()
 
     def hide(self):
         """Hide the overlay."""
