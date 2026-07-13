@@ -24,11 +24,13 @@ class AudioRecorder:
         channels: int = 1,
         max_seconds: int = 120,
         on_amplitude: Optional[Callable[[float], None]] = None,
+        on_max_duration: Optional[Callable[[], None]] = None,
     ):
         self.sample_rate = sample_rate
         self.channels = channels
         self.max_seconds = max_seconds
         self.on_amplitude = on_amplitude
+        self.on_max_duration = on_max_duration
 
         self._frames: list[np.ndarray] = []
         self._stream: Optional[sd.InputStream] = None
@@ -125,6 +127,16 @@ class AudioRecorder:
         if self.elapsed_seconds >= self.max_seconds:
             self._recording = False
             log.info("Max recording duration reached (%ds)", self.max_seconds)
+            # Close the stream to stop PortAudio from continuing to call this callback
+            if self._stream:
+                try:
+                    self._stream.abort()
+                except Exception:
+                    pass
+            # Notify the daemon so it can transition to the TRANSCRIBING state
+            if self.on_max_duration:
+                from gi.repository import GLib
+                GLib.idle_add(self.on_max_duration)
             return
 
         # Store audio frame

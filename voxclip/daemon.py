@@ -76,7 +76,6 @@ class VoxClipDaemon:
                 cpu_threads=self.config.cpu_threads,
             )
         else:
-            from .transcriber import WhisperTranscriber
             log.info("Using WhisperTranscriber (local) model size=%s (cpu_threads=%d)", 
                      self.config.model_size, self.config.cpu_threads)
             self.transcriber = WhisperTranscriber(
@@ -225,6 +224,7 @@ class VoxClipDaemon:
             channels=self.config.channels,
             max_seconds=self.config.max_record_seconds,
             on_amplitude=self._on_amplitude,
+            on_max_duration=self._stop_recording,
         )
 
         try:
@@ -393,20 +393,23 @@ class VoxClipDaemon:
 
         from .settings import SettingsWindow
         
+        # Create the settings window first so the closures below can reference it safely.
+        self._settings_win = SettingsWindow(
+            on_save_callback=None,
+            on_history_callback=None,
+        )
+
         def _on_save():
             self._reload_config()
 
         def _on_history():
-            # Close settings window and open history overlay, keeping a reference
-            # so that pressing Esc in the history view can reopen settings.
+            # Hide (not destroy) so ESC from history can bring settings back.
             settings_win = self._settings_win
             self._settings_win.window.hide()
             self._show_history(from_settings=True, settings_window_ref=settings_win)
 
-        self._settings_win = SettingsWindow(
-            on_save_callback=_on_save,
-            on_history_callback=_on_history
-        )
+        self._settings_win.on_save_callback = _on_save
+        self._settings_win.on_history_callback = _on_history
         self._settings_win.show()
 
     def _reload_config(self):

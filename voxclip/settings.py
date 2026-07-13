@@ -174,8 +174,8 @@ class SettingsWindow:
         common_grid.attach(lang_label, 0, 0, 1, 1)
 
         self.lang_combo = Gtk.ComboBoxText()
-        for l in LANGUAGES:
-            self.lang_combo.append(l["id"], l["name"])
+        for lang in LANGUAGES:
+            self.lang_combo.append(lang["id"], lang["name"])
         common_grid.attach(self.lang_combo, 1, 0, 1, 1)
 
         # Max Recording Limit Selection

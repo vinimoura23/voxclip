@@ -208,6 +208,11 @@ class Config:
         """Save config to file."""
         self.ensure_dirs()
         data = asdict(self)
+        # Exclude runtime-derived path fields — they are always computed from
+        # XDG env vars and should not be persisted (avoids stale paths after
+        # home migration or XDG reconfiguration).
+        for key in ("config_dir", "data_dir", "cache_dir"):
+            data.pop(key, None)
         with open(self.config_file, "w") as f:
             json.dump(data, f, indent=2)
 

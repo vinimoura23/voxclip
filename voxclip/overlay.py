@@ -51,17 +51,6 @@ class OverlayWindow:
     Provides an ultra-sleek, compact, draggable and minimalist visual feedback pill.
     """
 
-    # Premium dark glass theme colors
-    BG_COLOR = "rgba(10, 10, 18, 0.86)"
-    ACCENT_1 = "#8b5cf6"  # Purple
-    ACCENT_2 = "#3b82f6"  # Blue
-    ACCENT_3 = "#06b6d4"  # Cyan
-    TEXT_PRIMARY = "#f8fafc"
-    TEXT_SECONDARY = "#94a3b8"
-    SUCCESS = "#10b981"
-    ERROR = "#f43f5e"
-    BORDER_COLOR = "rgba(139, 92, 246, 0.5)"
-
     def __init__(
         self,
         margin_top: int = 40,
@@ -104,18 +93,21 @@ class OverlayWindow:
         self._from_settings: bool = False
         self._settings_window_ref = None
 
-        # Load initial coordinates from config
-        from .config import Config
-        config = Config.load()
+        # Load and cache config — refreshed only on reload_theme() to avoid
+        # reading the config file from disk on every animation frame.
+        from .config import Config, THEMES
+        self._config = Config.load()
+        self._theme = THEMES.get(self._config.theme, THEMES["glass-violet"])
+
         screen = Gdk.Screen.get_default()
         screen_width = screen.get_width() if screen else 1920
         
         # Center horizontally if default -1
-        if config.overlay_x == -1:
+        if self._config.overlay_x == -1:
             self._current_x = (screen_width - 410) // 2
         else:
-            self._current_x = config.overlay_x
-        self._current_y = config.overlay_y
+            self._current_x = self._config.overlay_x
+        self._current_y = self._config.overlay_y
 
         self._build_ui()
         self._load_css()
@@ -513,6 +505,9 @@ class OverlayWindow:
     def reload_theme(self):
         """Reload configuration and refresh stylesheet dynamically."""
         log.info("Reloading dynamic theme stylesheet for overlay...")
+        from .config import Config, THEMES
+        self._config = Config.load()
+        self._theme = THEMES.get(self._config.theme, THEMES["glass-violet"])
         self._load_css()
         # Immediately queue redrawing for Cairo components to update gradients
         self.mic_drawing.queue_draw()
@@ -540,12 +535,10 @@ class OverlayWindow:
         self._pulse_phase = 0.0
 
         # Load active config to get model size or remote status
-        from .config import Config
-        config = Config.load()
-        if config.use_remote:
+        if self._config.use_remote:
             self.model_label.set_text("REMOTE")
         else:
-            self.model_label.set_text(config.model_size.upper())
+            self.model_label.set_text(self._config.model_size.upper())
 
         self.recording_box.show_all()
         self.transcribing_box.hide()
@@ -555,10 +548,6 @@ class OverlayWindow:
         # Enforce premium compact window layout strictly
         self._enforce_size(410, 54)
         self.window.show_all()
-        
-        self.transcribing_box.hide()
-        self.done_box.hide()
-        self.history_box.hide()
 
         self._start_animation()
 
@@ -661,9 +650,6 @@ class OverlayWindow:
 
         self._enforce_size(520, min(120 + len(entries) * 55, 500))
         self.window.show_all()
-        self.recording_box.hide()
-        self.transcribing_box.hide()
-        self.done_box.hide()
 
     def hide(self):
         """Hide the overlay."""
@@ -698,11 +684,7 @@ class OverlayWindow:
 
     def _draw_mic_indicator(self, widget, cr):
         """Draw the pulsing microphone indicator using dynamic theme colors."""
-        from .config import Config, THEMES
-        config = Config.load()
-        theme_name = config.theme if config.theme in THEMES else "glass-violet"
-        theme = THEMES[theme_name]
-        
+        theme = self._theme
         accent_color = theme["accent_color"]
         r_acc, g_acc, b_acc = hex_to_rgb(accent_color)
 
@@ -732,11 +714,7 @@ class OverlayWindow:
 
     def _draw_waveform(self, widget, cr):
         """Draw the audio waveform visualization with beautiful theme gradients."""
-        from .config import Config, THEMES
-        config = Config.load()
-        theme_name = config.theme if config.theme in THEMES else "glass-violet"
-        theme = THEMES[theme_name]
-        
+        theme = self._theme
         accent_1 = theme["accent_color"]
         accent_3 = theme["accent_3"]
         r1, g1, b1 = hex_to_rgb(accent_1)

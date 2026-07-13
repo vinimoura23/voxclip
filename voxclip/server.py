@@ -3,7 +3,7 @@
 import json
 import logging
 import time
-from http.server import HTTPServer, BaseHTTPRequestHandler
+from http.server import ThreadingHTTPServer, BaseHTTPRequestHandler
 import numpy as np
 
 from .transcriber import WhisperTranscriber
@@ -142,7 +142,7 @@ class VoxClipRequestHandler(BaseHTTPRequestHandler):
 def run_server(host: str = "0.0.0.0", port: int = 8745):
     """Starts the remote Whisper HTTP server."""
     server_address = (host, port)
-    httpd = HTTPServer(server_address, VoxClipRequestHandler)
+    httpd = ThreadingHTTPServer(server_address, VoxClipRequestHandler)
     log.info("Starting VoxClip Whisper server on http://%s:%d", host, port)
     try:
         httpd.serve_forever()

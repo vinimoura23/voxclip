@@ -71,7 +71,6 @@ def cmd_status(args, config: Config):
     response = send_command("status")
     if response is None:
         if args.waybar:
-            import json
             print(json.dumps({
                 "text": "❌ Off",
                 "tooltip": "VoxClip daemon is offline",
@@ -84,7 +83,6 @@ def cmd_status(args, config: Config):
 
     state = response.get("state", "unknown")
     if args.waybar:
-        import json
         icons = {
             "IDLE": "🎙️ Idle",
             "RECORDING": "🔴 REC",
