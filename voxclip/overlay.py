@@ -61,6 +61,8 @@ class OverlayWindow:
         on_stop: Optional[Callable[[], None]] = None,
         on_history: Optional[Callable[[], None]] = None,
         on_history_from_settings: Optional[Callable] = None,
+        on_history_delete: Optional[Callable[[int], None]] = None,
+        on_history_clear: Optional[Callable[[], None]] = None,
     ):
         self.margin_top = margin_top
         self.done_duration = done_duration
@@ -70,6 +72,8 @@ class OverlayWindow:
         self.on_stop = on_stop
         self.on_history = on_history
         self.on_history_from_settings = on_history_from_settings
+        self.on_history_delete = on_history_delete
+        self.on_history_clear = on_history_clear
 
         self._state = OverlayState.HIDDEN
         self._amplitude: float = 0.0
@@ -280,6 +284,12 @@ class OverlayWindow:
 
         hist_settings_btn = self._create_settings_button()
         history_header.pack_end(hist_settings_btn, False, False, 0)
+
+        self.history_clear_btn = Gtk.Button(label="🗑 Clear All")
+        self.history_clear_btn.set_name("history-clear-btn")
+        self.history_clear_btn.connect("clicked", self._on_history_clear_click)
+        history_header.pack_end(self.history_clear_btn, False, False, 0)
+
         self.history_box.pack_start(history_header, False, False, 4)
 
         # Scrollable list
@@ -290,12 +300,11 @@ class OverlayWindow:
 
         self.history_list = Gtk.ListBox()
         self.history_list.set_name("history-list")
-        self.history_list.set_selection_mode(Gtk.SelectionMode.SINGLE)
-        self.history_list.connect("row-activated", self._on_history_row_activated)
+        self.history_list.set_selection_mode(Gtk.SelectionMode.NONE)
         self.history_scroll.add(self.history_list)
         self.history_box.pack_start(self.history_scroll, True, True, 0)
 
-        history_hint = Gtk.Label(label="Click to copy • Esc to go back")
+        history_hint = Gtk.Label(label="Esc to go back")
         history_hint.set_name("hint-label")
         history_hint.set_margin_top(4)
         self.history_box.pack_start(history_hint, False, False, 0)
@@ -303,13 +312,14 @@ class OverlayWindow:
         self.main_box.pack_start(self.history_box, True, True, 0)
 
     def _create_settings_button(self) -> Gtk.Button:
-        """Create a beautiful, uniform custom Settings button matching the Stop button."""
+        """Create a gear ⚙ settings button."""
         btn = Gtk.Button()
         btn.set_name("rec-settings-button")
         btn.set_size_request(20, 20)
 
-        settings_image = Gtk.Image.new_from_icon_name("preferences-system-symbolic", Gtk.IconSize.MENU)
-        btn.add(settings_image)
+        gear = Gtk.Label(label="⚙")
+        gear.set_name("settings-gear-icon")
+        btn.add(gear)
 
         btn.connect("clicked", self._on_settings_click)
         return btn
@@ -488,6 +498,55 @@ class OverlayWindow:
             background: {accent_color};
             border-color: {accent_color};
             box-shadow: 0 0 8px {accent_color};
+        }}
+
+        #settings-gear-icon {{
+            font-size: 14px;
+        }}
+
+        /* Row action buttons (copy / delete) */
+        .row-action-btn {{
+            min-width: 26px;
+            min-height: 26px;
+            padding: 2px 5px;
+            font-size: 12px;
+            background-color: transparent;
+            border: 1px solid transparent;
+            border-radius: 5px;
+            color: {text_secondary};
+            transition: all 150ms ease;
+            box-shadow: none;
+        }}
+
+        .row-action-btn:hover {{
+            border-color: rgba({accent_rgb}, 0.4);
+            background-color: rgba({accent_rgb}, 0.15);
+            color: {text_primary};
+        }}
+
+        #row-delete-btn:hover {{
+            border-color: rgba(244, 63, 94, 0.4);
+            background-color: rgba(244, 63, 94, 0.12);
+            color: {error};
+        }}
+
+        /* Clear All button in history header */
+        #history-clear-btn {{
+            font-size: 11px;
+            color: {error};
+            background-color: transparent;
+            background-image: none;
+            border: 1px solid rgba(244, 63, 94, 0.35);
+            border-radius: 5px;
+            padding: 2px 8px;
+            min-height: 20px;
+            box-shadow: none;
+            transition: all 150ms ease;
+        }}
+
+        #history-clear-btn:hover {{
+            background-color: rgba(244, 63, 94, 0.15);
+            border-color: {error};
         }}
         """
 
@@ -799,20 +858,26 @@ class OverlayWindow:
     # --- History helpers ---
 
     def _create_history_row(self, entry) -> Gtk.ListBoxRow:
-        """Create a history list row widget."""
+        """Create a history list row with copy and delete action buttons."""
         row = Gtk.ListBoxRow()
         row.entry_id = entry.id
+        row.set_activatable(False)
 
-        box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
+        # Outer: content on the left, action buttons on the right
+        main_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
+        main_box.set_margin_start(4)
+        main_box.set_margin_end(4)
+
+        # Content: text + metadata
+        content_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
 
         text_label = Gtk.Label(label=entry.preview)
         text_label.set_halign(Gtk.Align.START)
         text_label.set_ellipsize(Pango.EllipsizeMode.END)
         text_label.get_style_context().add_class("history-text")
-        box.pack_start(text_label, False, False, 0)
+        content_box.pack_start(text_label, False, False, 0)
 
-        meta_parts = []
-        meta_parts.append(entry.created_at)
+        meta_parts = [entry.created_at]
         if entry.language:
             meta_parts.append(entry.language.upper())
         if entry.duration_seconds > 0:
@@ -821,13 +886,51 @@ class OverlayWindow:
         meta_label = Gtk.Label(label=" · ".join(meta_parts))
         meta_label.set_halign(Gtk.Align.START)
         meta_label.get_style_context().add_class("history-meta")
-        box.pack_start(meta_label, False, False, 0)
+        content_box.pack_start(meta_label, False, False, 0)
 
-        row.add(box)
+        main_box.pack_start(content_box, True, True, 0)
+
+        # Action buttons (copy + delete)
+        btn_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=4)
+        btn_box.set_valign(Gtk.Align.CENTER)
+
+        copy_btn = Gtk.Button(label="⧉")
+        copy_btn.set_name("row-copy-btn")
+        copy_btn.set_tooltip_text("Copy to clipboard")
+        copy_btn.get_style_context().add_class("row-action-btn")
+        eid = entry.id  # capture for lambda
+        copy_btn.connect("clicked", lambda _b, i=eid: self._on_row_copy(i))
+        btn_box.pack_start(copy_btn, False, False, 0)
+
+        del_btn = Gtk.Button(label="🗑")
+        del_btn.set_name("row-delete-btn")
+        del_btn.set_tooltip_text("Delete entry")
+        del_btn.get_style_context().add_class("row-action-btn")
+        del_btn.connect("clicked", lambda _b, i=eid: self._on_row_delete(i))
+        btn_box.pack_start(del_btn, False, False, 0)
+
+        main_box.pack_end(btn_box, False, False, 0)
+
+        row.add(main_box)
         return row
 
+    def _on_row_copy(self, entry_id: int):
+        """Copy a history entry to clipboard."""
+        if self.on_history_select:
+            self.on_history_select(entry_id)
+
+    def _on_row_delete(self, entry_id: int):
+        """Delete a history entry and refresh the list."""
+        if self.on_history_delete:
+            self.on_history_delete(entry_id)
+
+    def _on_history_clear_click(self, widget):
+        """Clear all history entries."""
+        if self.on_history_clear:
+            self.on_history_clear()
+
     def _on_history_row_activated(self, listbox, row):
-        """Handle clicking a history entry."""
+        """Handle clicking a history entry (kept for compatibility)."""
         if hasattr(row, "entry_id") and self.on_history_select:
             self.on_history_select(row.entry_id)
 
@@ -947,12 +1050,33 @@ class OverlayWindow:
             self.on_stop()
 
     def _on_settings_click(self, widget):
-        """Opens the Settings Window."""
+        """Opens the Settings Window (singleton — reuses existing window)."""
         if self.on_cancel:
             self.on_cancel()
 
+        # If we're in history and came from a settings window, just go back to it
+        # instead of opening a new one — this prevents duplicate windows.
+        if self._settings_window_ref is not None:
+            try:
+                self.hide()
+                self._settings_window_ref.show()
+                self._from_settings = False
+                self._settings_window_ref = None
+                return
+            except Exception:
+                self._settings_window_ref = None
+
+        # If a settings window is already open, just focus it
+        if hasattr(self, "_settings_window") and self._settings_window is not None:
+            try:
+                if self._settings_window.window.get_visible():
+                    self._settings_window.window.present()
+                    return
+            except Exception:
+                self._settings_window = None
+
         from .settings import SettingsWindow
-        
+
         def _on_save():
             if self.on_settings_saved:
                 self.on_settings_saved()

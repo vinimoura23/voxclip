@@ -108,6 +108,8 @@ class VoxClipDaemon:
             on_stop=self._stop_recording,
             on_history=self._show_history,
             on_history_from_settings=self._show_history_from_settings,
+            on_history_delete=self._on_history_delete,
+            on_history_clear=self._on_history_clear,
         )
 
         # Initialize system tray status icon if supported
@@ -379,12 +381,27 @@ class VoxClipDaemon:
         )
 
     def _on_history_select(self, entry_id: int):
-        """Handle selecting a history entry."""
+        """Handle selecting a history entry — copy to clipboard and show done."""
         entry = self.history.get_by_id(entry_id)
         if entry:
             copy_to_clipboard(entry.text)
             self.overlay.show_done(entry.text, entry.language)
             notify("VoxClip", f"Copied from history: {entry.preview}", timeout_ms=2000)
+
+    def _on_history_delete(self, entry_id: int):
+        """Delete a history entry and refresh the history overlay (GTK thread)."""
+        self.history.delete(entry_id)
+        from_settings = self.overlay._from_settings
+        settings_ref = self.overlay._settings_window_ref
+        entries = self.history.get_recent(30)
+        self.overlay.show_history(entries, from_settings=from_settings, settings_window_ref=settings_ref)
+
+    def _on_history_clear(self):
+        """Clear all history entries and refresh the history overlay (GTK thread)."""
+        self.history.clear()
+        from_settings = self.overlay._from_settings
+        settings_ref = self.overlay._settings_window_ref
+        self.overlay.show_history([], from_settings=from_settings, settings_window_ref=settings_ref)
 
     def _show_settings(self):
         """Show the settings window on GTK thread."""
