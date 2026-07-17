@@ -86,12 +86,10 @@ class OverlayWindow:
 
         # Dragging state
         self._is_dragging = False
-        self._drag_start_x = 0.0
-        self._drag_start_y = 0.0
-        self._start_margin_left = 0
-        self._start_margin_top = 0
-        self._start_pos_x = 0
-        self._start_pos_y = 0
+        self._drag_start_screen_x = 0  # absolute screen X at press
+        self._drag_start_screen_y = 0  # absolute screen Y at press
+        self._drag_start_margin_x = 0  # window margin X at press
+        self._drag_start_margin_y = 0  # window margin Y at press
 
         # History → Settings back-navigation
         self._from_settings: bool = False
@@ -998,51 +996,27 @@ class OverlayWindow:
         return False
 
     def _on_button_press(self, widget, event):
-        """Start dragging window on left-click, grabbing the seat pointer to prevent cursor escape."""
+        """Start dragging: capture absolute screen position of cursor and current margin."""
         if event.button == 1:
             self._is_dragging = True
-            # Grab the pointer via Gdk.Seat so the cursor stays confined to our window
-            # during the drag — this is the correct Wayland/X11 approach in GTK3.
             try:
                 seat = Gdk.Display.get_default().get_default_seat()
-                pointer = seat.get_pointer()
-                _, start_x, start_y = pointer.get_position()
-                self._drag_start_x = start_x
-                self._drag_start_y = start_y
-                # Perform a seat grab to capture all pointer events during drag
-                gdk_window = self.window.get_window()
-                if gdk_window is not None:
-                    seat.grab(
-                        gdk_window,
-                        Gdk.SeatCapabilities.POINTER,
-                        False,   # owner_events: False keeps events local
-                        None,    # cursor (None = keep current)
-                        event,
-                        None, None,
-                    )
+                _, sx, sy = seat.get_pointer().get_position()
+                self._drag_start_screen_x = int(sx)
+                self._drag_start_screen_y = int(sy)
             except Exception:
-                # Fallback to standard event coordinates if seat grab fails
-                self._drag_start_x = event.x_root
-                self._drag_start_y = event.y_root
-
-            if HAS_LAYER_SHELL:
-                self._start_margin_left = self._current_x
-                self._start_margin_top = self._current_y
-            else:
-                self._start_pos_x, self._start_pos_y = self.window.get_position()
+                # Fallback: approximate from window-local + current margin
+                self._drag_start_screen_x = self._current_x + int(event.x)
+                self._drag_start_screen_y = self._current_y + int(event.y)
+            self._drag_start_margin_x = self._current_x
+            self._drag_start_margin_y = self._current_y
             return True
         return False
 
     def _on_button_release(self, widget, event):
-        """Stop dragging, release the seat grab, and save new position to config."""
+        """Stop dragging and save new position to config."""
         if event.button == 1 and self._is_dragging:
             self._is_dragging = False
-            # Release the seat pointer grab so normal cursor behaviour resumes
-            try:
-                seat = Gdk.Display.get_default().get_default_seat()
-                seat.ungrab()
-            except Exception:
-                pass
             # Save coordinates to config
             from .config import Config
             config = Config.load()
@@ -1054,34 +1028,33 @@ class OverlayWindow:
         return False
 
     def _on_motion_notify(self, widget, event):
-        """Move the window as it gets dragged using global seat pointer (buttery smooth)."""
-        if self._is_dragging:
-            try:
-                seat = Gdk.Display.get_default().get_default_seat()
-                pointer = seat.get_pointer()
-                _, cur_x, cur_y = pointer.get_position()
-                dx = cur_x - self._drag_start_x
-                dy = cur_y - self._drag_start_y
-            except Exception:
-                dx = event.x_root - self._drag_start_x
-                dy = event.y_root - self._drag_start_y
+        """Move window during drag using absolute screen coordinates.
 
-            if HAS_LAYER_SHELL:
-                new_x = max(0, self._start_margin_left + int(dx))
-                new_y = max(0, self._start_margin_top + int(dy))
-                self._current_x = new_x
-                self._current_y = new_y
-                GtkLayerShell.set_margin(self.window, GtkLayerShell.Edge.LEFT, new_x)
-                GtkLayerShell.set_margin(self.window, GtkLayerShell.Edge.TOP, new_y)
-                # Avoid self.window.queue_resize() inside motion notify to prevent CPU spikes and drag lag
-            else:
-                new_x = max(0, self._start_pos_x + int(dx))
-                new_y = max(0, self._start_pos_y + int(dy))
-                self._current_x = new_x
-                self._current_y = new_y
-                self.window.move(new_x, new_y)
-            return True
-        return False
+        seat.get_pointer().get_position() returns real screen coords in Wayland.
+        delta = current_screen - screen_at_press  (no frame-of-reference issues).
+        new_margin = margin_at_press + delta
+        """
+        if not self._is_dragging:
+            return False
+
+        try:
+            seat = Gdk.Display.get_default().get_default_seat()
+            _, cur_x, cur_y = seat.get_pointer().get_position()
+            cur_x, cur_y = int(cur_x), int(cur_y)
+        except Exception:
+            return False
+
+        new_x = max(0, self._drag_start_margin_x + (cur_x - self._drag_start_screen_x))
+        new_y = max(0, self._drag_start_margin_y + (cur_y - self._drag_start_screen_y))
+        self._current_x = new_x
+        self._current_y = new_y
+
+        if HAS_LAYER_SHELL:
+            GtkLayerShell.set_margin(self.window, GtkLayerShell.Edge.LEFT, new_x)
+            GtkLayerShell.set_margin(self.window, GtkLayerShell.Edge.TOP, new_y)
+        else:
+            self.window.move(new_x, new_y)
+        return True
 
     def _on_stop_click(self, widget):
         """Handle Stop button clicked (finish and transcribe)."""
