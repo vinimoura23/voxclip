@@ -218,6 +218,19 @@ class OverlayWindow:
         self.rec_stop_btn.connect("clicked", self._on_stop_click)
         self.recording_box.pack_start(self.rec_stop_btn, False, False, 4)
 
+        # Cancel button — stops recording and discards audio (no transcription)
+        self.rec_cancel_btn = Gtk.Button()
+        self.rec_cancel_btn.set_name("rec-cancel-button")
+        self.rec_cancel_btn.set_size_request(20, 20)
+        self.rec_cancel_btn.set_tooltip_text("Cancel recording (discard audio)")
+
+        cancel_label = Gtk.Label(label="✕")
+        cancel_label.set_name("cancel-icon-label")
+        self.rec_cancel_btn.add(cancel_label)
+
+        self.rec_cancel_btn.connect("clicked", self._on_cancel_btn_click)
+        self.recording_box.pack_start(self.rec_cancel_btn, False, False, 0)
+
         # Custom themed Settings button
         rec_settings_btn = self._create_settings_button()
         self.recording_box.pack_start(rec_settings_btn, False, False, 4)
@@ -477,6 +490,32 @@ class OverlayWindow:
             background: {error};
             border-color: {error};
             box-shadow: 0 0 8px {error};
+        }}
+
+        /* Cancel button — discard recording without transcribing */
+        #rec-cancel-button {{
+            color: {text_secondary};
+            background: transparent;
+            border: 1px solid rgba(255, 255, 255, 0.15);
+            border-radius: 5px;
+            padding: 0px;
+            margin: 0;
+            min-width: 20px;
+            min-height: 20px;
+            transition: all 200ms ease;
+            box-shadow: none;
+        }}
+
+        #rec-cancel-button:hover {{
+            color: #ffffff;
+            background: {error};
+            border-color: {error};
+            box-shadow: 0 0 8px {error};
+        }}
+
+        #cancel-icon-label {{
+            font-size: 11px;
+            font-weight: bold;
         }}
 
         /* Remodeled beautiful Settings Button matching Stop button */
@@ -1048,6 +1087,11 @@ class OverlayWindow:
         """Handle Stop button clicked (finish and transcribe)."""
         if self.on_stop:
             self.on_stop()
+
+    def _on_cancel_btn_click(self, widget):
+        """Handle Cancel button clicked (discard audio, no transcription)."""
+        if self.on_cancel:
+            self.on_cancel()
 
     def _on_settings_click(self, widget):
         """Opens the Settings Window (singleton — reuses existing window).
