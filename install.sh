@@ -124,8 +124,7 @@ info "Criando comando executável em $BIN_LINK..."
 mkdir -p "$(dirname "$BIN_LINK")"
 cat > "$BIN_LINK" << 'WRAPPER'
 #!/usr/bin/env bash
-source "$HOME/.local/share/voxclip/.venv/bin/activate"
-exec python -m voxclip "$@"
+exec "$HOME/.local/share/voxclip/.venv/bin/voxclip" "$@"
 WRAPPER
 chmod +x "$BIN_LINK"
 ok "Comando 'voxclip' criado com sucesso."
