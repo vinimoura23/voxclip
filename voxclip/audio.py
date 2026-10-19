@@ -8,6 +8,11 @@ from typing import Callable, Optional
 import numpy as np
 import sounddevice as sd
 
+try:
+    from gi.repository import GLib
+except (ImportError, ValueError):
+    GLib = None
+
 log = logging.getLogger(__name__)
 
 
@@ -97,6 +102,7 @@ class AudioRecorder:
                 log.warning("No audio frames captured")
                 return None
             audio = np.concatenate(self._frames, axis=0).flatten()
+            self._frames = []
 
         duration = len(audio) / self.sample_rate
         log.info("Recording stopped: %.1fs, %d samples", duration, len(audio))
@@ -112,7 +118,8 @@ class AudioRecorder:
             except sd.PortAudioError:
                 pass
             self._stream = None
-        self._frames = []
+        with self._lock:
+            self._frames = []
         log.info("Recording cancelled")
 
     def _audio_callback(self, indata: np.ndarray, frames: int, time_info, status):
@@ -135,13 +142,16 @@ class AudioRecorder:
                     pass
             # Notify the daemon so it can transition to the TRANSCRIBING state
             if self.on_max_duration:
-                from gi.repository import GLib
-                GLib.idle_add(self.on_max_duration)
+                if GLib:
+                    GLib.idle_add(self.on_max_duration)
+                else:
+                    self.on_max_duration()
             return
 
         # Store audio frame
         with self._lock:
-            self._frames.append(indata.copy())
+            if self._recording:
+                self._frames.append(indata.copy())
 
         # Send amplitude to UI for waveform visualization
         if self.on_amplitude:

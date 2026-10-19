@@ -286,6 +286,7 @@ class SettingsWindow:
                     else:
                         GLib.idle_add(self._update_status, f"Error (Status {response.status}) ❌", False)
             except Exception as e:
+                log.warning("Connection test to %s failed: %s", url, e)
                 GLib.idle_add(self._update_status, "Connection failed ❌", False)
 
         threading.Thread(target=_test_thread, daemon=True).start()
@@ -298,20 +299,37 @@ class SettingsWindow:
         """Reads settings from widgets and saves to config file."""
         try:
             backend = self.backend_combo.get_active_id()
-            self.config.use_remote = (backend == "remote")
+            if backend:
+                self.config.use_remote = (backend == "remote")
 
             # Save Local Settings
-            self.config.model_size = self.model_combo.get_active_id()
-            self.config.device = self.device_combo.get_active_id()
-            self.config.cpu_threads = int(self.threads_combo.get_active_id())
+            model_size = self.model_combo.get_active_id()
+            if model_size:
+                self.config.model_size = model_size
+
+            device = self.device_combo.get_active_id()
+            if device:
+                self.config.device = device
+
+            threads = self.threads_combo.get_active_id()
+            if threads:
+                self.config.cpu_threads = int(threads)
 
             # Save Remote Settings
             self.config.remote_url = self.url_entry.get_text().strip()
 
             # Save Common Settings
-            self.config.language = self.lang_combo.get_active_id()
-            self.config.max_record_seconds = int(self.limit_combo.get_active_id())
-            self.config.theme = self.theme_combo.get_active_id()
+            lang = self.lang_combo.get_active_id()
+            if lang:
+                self.config.language = lang
+
+            limit = self.limit_combo.get_active_id()
+            if limit:
+                self.config.max_record_seconds = int(limit)
+
+            theme = self.theme_combo.get_active_id()
+            if theme:
+                self.config.theme = theme
 
             self.config.save()
             log.info("Settings saved successfully")

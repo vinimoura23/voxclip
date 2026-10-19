@@ -9,10 +9,13 @@ import numpy as np
 from .transcriber import WhisperTranscriber
 from .config import WHISPER_MODELS
 
+import threading
+
 log = logging.getLogger(__name__)
 
 # Global active transcriber to keep model loaded across requests
 _active_transcriber = None
+_transcriber_lock = threading.Lock()
 
 
 def get_transcriber(
@@ -27,36 +30,37 @@ def get_transcriber(
     """Gets or creates the active WhisperTranscriber, hotswapping the model if necessary."""
     global _active_transcriber
     
-    need_reload = (
-        _active_transcriber is None
-        or _active_transcriber.model_size != model_size
-        or _active_transcriber.device != device
-        or _active_transcriber.compute_type != compute_type
-        or _active_transcriber.cpu_threads != cpu_threads
-    )
-    
-    if need_reload:
-        if _active_transcriber is not None:
-            log.info("Unloading previous model: %s", _active_transcriber.model_size)
-            _active_transcriber.unload_model()
-            
-        log.info("Initializing new model: %s (device=%s, cpu_threads=%d)", model_size, device, cpu_threads)
-        _active_transcriber = WhisperTranscriber(
-            model_size=model_size,
-            device=device,
-            compute_type=compute_type,
-            language=language,
-            vad_filter=vad_filter,
-            vad_threshold=vad_threshold,
-            cpu_threads=cpu_threads,
+    with _transcriber_lock:
+        need_reload = (
+            _active_transcriber is None
+            or _active_transcriber.model_size != model_size
+            or _active_transcriber.device != device
+            or _active_transcriber.compute_type != compute_type
+            or _active_transcriber.cpu_threads != cpu_threads
         )
-    else:
-        # Just update non-structural settings
-        _active_transcriber.language = language if language != "auto" else None
-        _active_transcriber.vad_filter = vad_filter
-        _active_transcriber.vad_threshold = vad_threshold
         
-    return _active_transcriber
+        if need_reload:
+            if _active_transcriber is not None:
+                log.info("Unloading previous model: %s", _active_transcriber.model_size)
+                _active_transcriber.unload_model()
+                
+            log.info("Initializing new model: %s (device=%s, cpu_threads=%d)", model_size, device, cpu_threads)
+            _active_transcriber = WhisperTranscriber(
+                model_size=model_size,
+                device=device,
+                compute_type=compute_type,
+                language=language,
+                vad_filter=vad_filter,
+                vad_threshold=vad_threshold,
+                cpu_threads=cpu_threads,
+            )
+        else:
+            # Just update non-structural settings
+            _active_transcriber.language = language if language != "auto" else None
+            _active_transcriber.vad_filter = vad_filter
+            _active_transcriber.vad_threshold = vad_threshold
+            
+        return _active_transcriber
 
 
 class VoxClipRequestHandler(BaseHTTPRequestHandler):

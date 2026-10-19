@@ -1,4 +1,4 @@
-"""Clipboard management via wl-copy (Wayland)."""
+"""Clipboard management with multi-platform fallbacks (Wayland, X11, generic)."""
 
 import subprocess
 import shutil
@@ -8,33 +8,72 @@ log = logging.getLogger(__name__)
 
 
 def copy_to_clipboard(text: str) -> bool:
-    """Copy text to Wayland clipboard using wl-copy.
+    """Copy text to clipboard using wl-copy (Wayland), xclip/xsel (X11), or Python fallback.
     
     Returns True on success, False on failure.
     """
+    # 1. Native Wayland via wl-copy
     wl_copy = shutil.which("wl-copy")
-    if not wl_copy:
-        log.error("wl-copy not found. Install wl-clipboard: sudo pacman -S wl-clipboard")
-        return False
+    if wl_copy:
+        try:
+            proc = subprocess.run(
+                [wl_copy, "--", text],
+                timeout=5,
+                capture_output=True,
+                text=True,
+            )
+            if proc.returncode == 0:
+                log.info("Text copied to clipboard via wl-copy (%d chars)", len(text))
+                return True
+            log.warning("wl-copy returned exit code %d: %s", proc.returncode, proc.stderr)
+        except Exception as e:
+            log.warning("wl-copy execution failed: %s", e)
 
+    # 2. X11 via xclip
+    xclip = shutil.which("xclip")
+    if xclip:
+        try:
+            proc = subprocess.run(
+                [xclip, "-selection", "clipboard"],
+                input=text,
+                timeout=5,
+                capture_output=True,
+                text=True,
+            )
+            if proc.returncode == 0:
+                log.info("Text copied to clipboard via xclip (%d chars)", len(text))
+                return True
+        except Exception as e:
+            log.warning("xclip execution failed: %s", e)
+
+    # 3. X11 via xsel
+    xsel = shutil.which("xsel")
+    if xsel:
+        try:
+            proc = subprocess.run(
+                [xsel, "--clipboard", "--input"],
+                input=text,
+                timeout=5,
+                capture_output=True,
+                text=True,
+            )
+            if proc.returncode == 0:
+                log.info("Text copied to clipboard via xsel (%d chars)", len(text))
+                return True
+        except Exception as e:
+            log.warning("xsel execution failed: %s", e)
+
+    # 4. Cross-platform / Pyperclip fallback
     try:
-        proc = subprocess.run(
-            [wl_copy, "--", text],
-            timeout=5,
-            capture_output=True,
-            text=True,
-        )
-        if proc.returncode != 0:
-            log.error("wl-copy failed: %s", proc.stderr)
-            return False
-        log.info("Text copied to clipboard (%d chars)", len(text))
+        import pyperclip
+        pyperclip.copy(text)
+        log.info("Text copied to clipboard via pyperclip (%d chars)", len(text))
         return True
-    except subprocess.TimeoutExpired:
-        log.error("wl-copy timed out")
-        return False
-    except OSError as e:
-        log.error("Failed to run wl-copy: %s", e)
-        return False
+    except Exception:
+        pass
+
+    log.error("Could not copy to clipboard: no clipboard utility found. Install wl-clipboard or xclip.")
+    return False
 
 
 def notify(title: str, body: str, urgency: str = "normal", timeout_ms: int = 3000) -> None:

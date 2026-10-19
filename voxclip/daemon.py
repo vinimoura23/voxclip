@@ -373,12 +373,7 @@ class VoxClipDaemon:
 
     def _show_history_from_settings(self, settings_window_ref=None):
         """Show history overlay with back-navigation to a settings window (GTK thread)."""
-        entries = self.history.get_recent(30)
-        self.overlay.show_history(
-            entries,
-            from_settings=True,
-            settings_window_ref=settings_window_ref,
-        )
+        self._show_history(from_settings=True, settings_window_ref=settings_window_ref)
 
     def _on_history_select(self, entry_id: int):
         """Handle selecting a history entry — copy to clipboard and show done."""
@@ -391,16 +386,16 @@ class VoxClipDaemon:
     def _on_history_delete(self, entry_id: int):
         """Delete a history entry and refresh the history overlay (GTK thread)."""
         self.history.delete(entry_id)
-        from_settings = self.overlay._from_settings
-        settings_ref = self.overlay._settings_window_ref
+        from_settings = self.overlay.from_settings
+        settings_ref = self.overlay.settings_window_ref
         entries = self.history.get_recent(30)
         self.overlay.show_history(entries, from_settings=from_settings, settings_window_ref=settings_ref)
 
     def _on_history_clear(self):
         """Clear all history entries and refresh the history overlay (GTK thread)."""
         self.history.clear()
-        from_settings = self.overlay._from_settings
-        settings_ref = self.overlay._settings_window_ref
+        from_settings = self.overlay.from_settings
+        settings_ref = self.overlay.settings_window_ref
         self.overlay.show_history([], from_settings=from_settings, settings_window_ref=settings_ref)
 
     def _show_settings(self):

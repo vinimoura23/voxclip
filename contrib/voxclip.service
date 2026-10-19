@@ -1,6 +1,7 @@
 [Unit]
 Description=VoxClip — Voice-to-Clipboard daemon
 Documentation=https://github.com/voxclip/voxclip
+PartOf=graphical-session.target
 After=graphical-session.target
 Wants=pipewire.service
 
@@ -9,7 +10,7 @@ Type=simple
 ExecStart=%h/.local/bin/voxclip daemon
 Restart=on-failure
 RestartSec=5
-Environment=DISPLAY=:0
+PassEnvironment=WAYLAND_DISPLAY DISPLAY XDG_CURRENT_DESKTOP XDG_RUNTIME_DIR
 
 # Resource limits
 MemoryMax=3G

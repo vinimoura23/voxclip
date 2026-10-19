@@ -114,6 +114,16 @@ class OverlayWindow:
         self._build_ui()
         self._load_css()
 
+    @property
+    def from_settings(self) -> bool:
+        """Indicates whether history was opened from settings."""
+        return self._from_settings
+
+    @property
+    def settings_window_ref(self):
+        """Reference to the parent settings window if opened from settings."""
+        return self._settings_window_ref
+
     def _build_ui(self):
         """Construct the GTK widget tree."""
         # Main window
@@ -337,10 +347,7 @@ class OverlayWindow:
 
     def _load_css(self):
         """Load CSS styling for the overlay dynamically based on the active theme."""
-        from .config import Config, THEMES
-        config = Config.load()
-        theme_name = config.theme if config.theme in THEMES else "glass-violet"
-        theme = THEMES[theme_name]
+        theme = self._theme
 
         bg_color_rgba = theme["bg_color_rgba"]
         border_color_rgba = theme["border_color_rgba"]
@@ -386,13 +393,6 @@ class OverlayWindow:
             border: 1px solid rgba({accent_rgb}, 0.45);
             padding: 2px 6px;
             border-radius: 5px;
-        }}
-
-        #lightning-label {{
-            color: #f59e0b;
-            font-size: 14px;
-            font-weight: bold;
-            text-shadow: 0 0 6px rgba(245, 158, 11, 0.7);
         }}
 
         #hint-label {{
