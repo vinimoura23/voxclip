@@ -11,7 +11,8 @@ gi.require_version("Gtk", "3.0")
 gi.require_version("Gdk", "3.0")
 from gi.repository import Gtk, Gdk, GLib  # noqa: E402
 
-from .config import Config, WHISPER_MODELS, LANGUAGES, THEMES
+from .config import Config, WHISPER_MODELS, LANGUAGES, THEMES, hex_to_rgb
+from .icons import get_icon_image
 
 log = logging.getLogger(__name__)
 
@@ -211,8 +212,15 @@ class SettingsWindow:
         main_box.pack_end(button_box, False, False, 0)
 
         # Left aligned: View History Button
-        self.history_btn = Gtk.Button(label="📋 View History")
+        self.history_btn = Gtk.Button()
         self.history_btn.set_name("history-button")
+        hist_btn_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        hist_theme = THEMES.get(self.config.theme, THEMES["dark"])
+        hist_btn_icon = get_icon_image("history", size=14, color=hist_theme["text_primary"])
+        hist_btn_label = Gtk.Label(label="View History")
+        hist_btn_box.pack_start(hist_btn_icon, False, False, 0)
+        hist_btn_box.pack_start(hist_btn_label, False, False, 0)
+        self.history_btn.add(hist_btn_box)
         self.history_btn.connect("clicked", self._on_history_click)
         button_box.pack_start(self.history_btn, False, False, 0)
 
@@ -282,18 +290,22 @@ class SettingsWindow:
                 req = urllib.request.Request(ping_url, method="GET")
                 with urllib.request.urlopen(req, timeout=5.0) as response:
                     if response.status == 200:
-                        GLib.idle_add(self._update_status, "Success ✅", True)
+                        GLib.idle_add(self._update_status, "Connected successfully", True)
                     else:
-                        GLib.idle_add(self._update_status, f"Error (Status {response.status}) ❌", False)
+                        GLib.idle_add(self._update_status, f"HTTP Error {response.status}", False)
             except Exception as e:
                 log.warning("Connection test to %s failed: %s", url, e)
-                GLib.idle_add(self._update_status, "Connection failed ❌", False)
+                GLib.idle_add(self._update_status, "Connection failed", False)
 
         threading.Thread(target=_test_thread, daemon=True).start()
 
     def _update_status(self, text: str, success: bool):
         self.status_label.set_text(text)
         self.test_button.set_sensitive(True)
+        theme = THEMES.get(self.config.theme, THEMES["dark"])
+        color_hex = theme["success"] if success else theme["error"]
+        r, g, b = hex_to_rgb(color_hex)
+        self.status_label.override_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(r, g, b, 1.0))
 
     def _save_settings(self) -> bool:
         """Reads settings from widgets and saves to config file."""
@@ -371,7 +383,7 @@ class SettingsWindow:
 
     def _load_css(self):
         """Loads dynamically compiled theme stylesheet for settings window."""
-        theme_name = self.config.theme if self.config.theme in THEMES else "glass-violet"
+        theme_name = self.config.theme if self.config.theme in THEMES else "dark"
         theme = THEMES[theme_name]
 
         bg_color_hex = theme["bg_color_hex"]
@@ -379,14 +391,11 @@ class SettingsWindow:
         accent_color = theme["accent_color"]
         accent_rgb = theme["accent_rgb"]
         accent_2 = theme["accent_2"]
-        accent_3 = theme["accent_3"]
         bg_dark = theme["bg_dark"]
         bg_light = theme["bg_light"]
         bg_hover = theme["bg_hover"]
         text_primary = theme["text_primary"]
         text_secondary = theme["text_secondary"]
-        success = theme["success"]
-        error = theme["error"]
 
         css = f"""
         #settings-main {{
@@ -397,13 +406,12 @@ class SettingsWindow:
             border: 1px solid {border_color_rgba};
             border-radius: 12px;
         }}
-        /* Make all labels ultra high-contrast so they are perfectly legible on low brightness */
         #settings-main label, grid label, window label {{
             color: {text_primary};
             font-size: 13px;
-            font-weight: 600;
+            font-weight: 500;
         }}
-        /* Bulletproof dark styling for GtkComboBox and all its nested widgets */
+        /* Clean native input and combobox styling */
         combobox, combobox *, combobox button, combobox cellview, combobox box, combobox text, entry {{
             background-color: {bg_light};
             background: {bg_light};
@@ -415,19 +423,22 @@ class SettingsWindow:
         combobox, entry {{
             border: 1px solid {border_color_rgba};
             border-radius: 6px;
-            padding: 4px 8px;
-            font-size: 12px;
-            font-weight: 500;
-            min-height: 28px;
+            padding: 4px 10px;
+            font-size: 13px;
+            font-weight: 400;
+            min-height: 32px;
         }}
-        combobox:hover, entry:focus {{
+        combobox:hover, entry:hover {{
             border-color: {accent_2};
+        }}
+        combobox:focus, entry:focus {{
+            border-color: {accent_color};
             background-color: {bg_hover};
         }}
         combobox button:hover {{
-            background-color: rgba(255, 255, 255, 0.05);
+            background-color: transparent;
         }}
-        /* Dark Theme Dropdown Menu styling for GTK3 */
+        /* Dropdown Menu */
         menu, comboboxwindow, comboboxbox {{
             background-color: {bg_dark};
             border: 1px solid {border_color_rgba};
@@ -443,102 +454,83 @@ class SettingsWindow:
             font-weight: 500;
         }}
         menuitem:hover, menuitem:active {{
-            background-color: rgba({accent_rgb}, 0.35);
+            background-color: rgba({accent_rgb}, 0.20);
             color: {text_primary};
         }}
+
+        /* Unified Modern Desktop Button Base (32px height, 6px radius) */
         button {{
             background-image: none;
             box-shadow: none;
             text-shadow: none;
             outline: none;
-            background-color: rgba(255, 255, 255, 0.06);
-            border: 1px solid rgba(255, 255, 255, 0.15);
+            background-color: {bg_light};
+            border: 1px solid {border_color_rgba};
             border-radius: 6px;
             color: {text_primary};
-            font-weight: bold;
-            padding: 3px 10px;
-            transition: all 150ms ease;
-            min-height: 26px;
-            font-size: 12px;
+            font-weight: 500;
+            padding: 4px 14px;
+            min-height: 32px;
+            font-size: 13px;
+            transition: all 120ms ease;
         }}
         button:hover {{
-            background-image: none;
-            box-shadow: none;
-            background-color: rgba(255, 255, 255, 0.12);
-            border-color: rgba(255, 255, 255, 0.3);
+            background-color: {bg_hover};
+            border-color: {accent_2};
         }}
         button:active {{
-            background-image: none;
-            box-shadow: none;
+            background-color: {bg_dark};
         }}
+
+        /* Primary Action: Solid Accent (Save) */
         #save-button {{
             background-color: {accent_color};
-            background-image: none;
-            box-shadow: none;
             border: 1px solid {accent_color};
             color: #ffffff;
-            text-shadow: none;
+            font-weight: 600;
         }}
         #save-button:hover {{
             background-color: {accent_2};
             border-color: {accent_2};
-            background-image: none;
-            box-shadow: 0 0 6px rgba({accent_rgb}, 0.35);
+            color: #ffffff;
         }}
+        #save-button:active {{
+            background-color: {accent_color};
+            opacity: 0.9;
+        }}
+
+        /* Secondary Accent (Apply) */
+        #apply-button {{
+            background-color: rgba({accent_rgb}, 0.12);
+            border: 1px solid rgba({accent_rgb}, 0.35);
+            color: {text_primary};
+        }}
+        #apply-button:hover {{
+            background-color: rgba({accent_rgb}, 0.22);
+            border-color: {accent_color};
+        }}
+
+        /* Neutral Dismiss (Cancel) */
         #cancel-button {{
             background-color: transparent;
-            background-image: none;
-            box-shadow: none;
             border: 1px solid transparent;
             color: {text_secondary};
         }}
         #cancel-button:hover {{
-            color: {error};
-            background-color: rgba(244, 63, 94, 0.08);
-            border-color: rgba(244, 63, 94, 0.15);
-            background-image: none;
-            box-shadow: none;
+            background-color: {bg_hover};
+            border-color: {border_color_rgba};
+            color: {text_primary};
         }}
-        #apply-button {{
-            background-color: rgba({accent_rgb}, 0.12);
-            background-image: none;
-            box-shadow: none;
-            border: 1px solid rgba({accent_rgb}, 0.4);
-            color: {accent_2};
+
+        /* Standard Secondary (View History & Test Connection) */
+        #history-button, #test-button {{
+            background-color: {bg_light};
+            border: 1px solid {border_color_rgba};
+            color: {text_primary};
         }}
-        #apply-button:hover {{
-            background-color: rgba({accent_rgb}, 0.25);
-            border-color: {accent_color};
-            background-image: none;
-            color: #ffffff;
-            box-shadow: 0 0 6px rgba({accent_rgb}, 0.2);
-        }}
-        #history-button {{
-            background-color: rgba({accent_rgb}, 0.1);
-            background-image: none;
-            box-shadow: none;
-            border: 1px solid rgba({accent_rgb}, 0.5);
-            color: {accent_2};
-        }}
-        #history-button:hover {{
-            background-color: rgba({accent_rgb}, 0.25);
-            border-color: {accent_color};
-            background-image: none;
-            color: #ffffff;
-            box-shadow: 0 0 6px rgba({accent_rgb}, 0.2);
-        }}
-        #test-button {{
-            background-color: rgba(6, 182, 212, 0.1);
-            background-image: none;
-            box-shadow: none;
-            border: 1px solid rgba(6, 182, 212, 0.4);
-            color: #22d3ee;
-        }}
-        #test-button:hover {{
-            background-color: rgba(6, 182, 212, 0.2);
-            border-color: #22d3ee;
-            background-image: none;
-            color: #ffffff;
+        #history-button:hover, #test-button:hover {{
+            background-color: {bg_hover};
+            border-color: {accent_2};
         }}
         """
 

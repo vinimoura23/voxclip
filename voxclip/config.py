@@ -40,111 +40,71 @@ LANGUAGES = [
 ]
 
 
-# Famous developer & system theme palettes
+# Modern, harmonious desktop theme palettes (Dark, Light, and Glass Violet)
 THEMES = {
-    "glass-violet": {
-        "name": "Glass Violet (Default)",
-        "bg_color_hex": "#0f0f19",
-        "bg_color_rgba": "rgba(10, 10, 18, 0.86)",
-        "border_color_rgba": "rgba(139, 92, 246, 0.5)",
-        "accent_color": "#8b5cf6",      # Purple
-        "accent_rgb": "139, 92, 246",
-        "accent_2": "#3b82f6",          # Blue
-        "accent_3": "#06b6d4",          # Cyan
-        "bg_dark": "#131322",
-        "bg_light": "#161625",
-        "bg_hover": "#1c1c30",
+    "dark": {
+        "name": "Modern Dark",
+        "bg_color_hex": "#12131a",
+        "bg_color_rgba": "rgba(18, 19, 26, 0.94)",
+        "border_color_rgba": "rgba(255, 255, 255, 0.10)",
+        "accent_color": "#6366f1",      # Indigo
+        "accent_rgb": "99, 102, 241",
+        "accent_2": "#818cf8",          # Lighter Indigo
+        "accent_3": "#38bdf8",          # Sky Blue
+        "bg_dark": "#0c0d12",
+        "bg_light": "#1a1b24",
+        "bg_hover": "#252632",
         "text_primary": "#f8fafc",
         "text_secondary": "#94a3b8",
         "success": "#10b981",
         "error": "#f43f5e"
     },
-    "dracula": {
-        "name": "Dracula",
-        "bg_color_hex": "#282a36",
-        "bg_color_rgba": "rgba(40, 42, 54, 0.90)",
-        "border_color_rgba": "rgba(189, 147, 249, 0.6)",
-        "accent_color": "#bd93f9",      # Purple
-        "accent_rgb": "189, 147, 249",
-        "accent_2": "#ff79c6",          # Pink
-        "accent_3": "#8be9fd",          # Cyan
-        "bg_dark": "#1e1f29",
-        "bg_light": "#21222c",
-        "bg_hover": "#44475a",
-        "text_primary": "#f8f8f2",
-        "text_secondary": "#6272a4",
-        "success": "#50fa7b",
-        "error": "#ff5555"
+    "light": {
+        "name": "Modern Light",
+        "bg_color_hex": "#f8fafc",
+        "bg_color_rgba": "rgba(248, 250, 252, 0.96)",
+        "border_color_rgba": "rgba(15, 23, 42, 0.12)",
+        "accent_color": "#4f46e5",      # Deep Indigo
+        "accent_rgb": "79, 70, 229",
+        "accent_2": "#6366f1",          # Indigo
+        "accent_3": "#0284c7",          # Sky Blue
+        "bg_dark": "#e2e8f0",
+        "bg_light": "#ffffff",
+        "bg_hover": "#f1f5f9",
+        "text_primary": "#0f172a",
+        "text_secondary": "#64748b",
+        "success": "#059669",
+        "error": "#e11d48"
     },
-    "nord": {
-        "name": "Nord",
-        "bg_color_hex": "#2e3440",
-        "bg_color_rgba": "rgba(46, 52, 64, 0.92)",
-        "border_color_rgba": "rgba(136, 192, 208, 0.6)",
-        "accent_color": "#88c0d0",      # Frost Cyan
-        "accent_rgb": "136, 192, 208",
-        "accent_2": "#81a1c1",          # Frost Blue
-        "accent_3": "#8fbcbb",          # Frost Green
-        "bg_dark": "#242933",
-        "bg_light": "#3b4252",
-        "bg_hover": "#434c5e",
-        "text_primary": "#eceff4",
-        "text_secondary": "#4c566a",
-        "success": "#a3be8c",
-        "error": "#bf616a"
-    },
-    "gruvbox": {
-        "name": "Gruvbox",
-        "bg_color_hex": "#282828",
-        "bg_color_rgba": "rgba(40, 40, 40, 0.92)",
-        "border_color_rgba": "rgba(254, 128, 25, 0.6)",
-        "accent_color": "#fe8019",      # Orange
-        "accent_rgb": "254, 128, 25",
-        "accent_2": "#fabd2f",          # Yellow
-        "accent_3": "#b8bb26",          # Green
-        "bg_dark": "#1d2021",
-        "bg_light": "#3c3836",
-        "bg_hover": "#504945",
-        "text_primary": "#ebdbb2",
-        "text_secondary": "#a89984",
-        "success": "#b8bb26",
-        "error": "#fb4934"
-    },
-    "tokyo-night": {
-        "name": "Tokyo Night",
-        "bg_color_hex": "#1a1b26",
-        "bg_color_rgba": "rgba(26, 27, 38, 0.90)",
-        "border_color_rgba": "rgba(122, 162, 247, 0.6)",
-        "accent_color": "#7aa2f7",      # Blue
-        "accent_rgb": "122, 162, 247",
-        "accent_2": "#bb9af3",          # Purple
-        "accent_3": "#7dcfff",          # Cyan
-        "bg_dark": "#16161e",
-        "bg_light": "#24283b",
-        "bg_hover": "#2f3549",
-        "text_primary": "#c0caf5",
-        "text_secondary": "#565f89",
-        "success": "#9ece6a",
-        "error": "#f7768e"
-    },
-    "one-dark": {
-        "name": "One Dark",
-        "bg_color_hex": "#21252b",
-        "bg_color_rgba": "rgba(33, 37, 43, 0.92)",
-        "border_color_rgba": "rgba(97, 175, 239, 0.6)",
-        "accent_color": "#61afef",      # Blue
-        "accent_rgb": "97, 175, 239",
-        "accent_2": "#c678dd",          # Purple
-        "accent_3": "#98c379",          # Green
-        "bg_dark": "#1e2227",
-        "bg_light": "#282c34",
-        "bg_hover": "#353b45",
-        "text_primary": "#abb2bf",
-        "text_secondary": "#5c6370",
-        "success": "#98c379",
-        "error": "#e06c75"
+    "glass-violet": {
+        "name": "Glass Violet",
+        "bg_color_hex": "#0f0f19",
+        "bg_color_rgba": "rgba(15, 15, 25, 0.92)",
+        "border_color_rgba": "rgba(139, 92, 246, 0.40)",
+        "accent_color": "#8b5cf6",      # Purple
+        "accent_rgb": "139, 92, 246",
+        "accent_2": "#a78bfa",          # Light Purple
+        "accent_3": "#06b6d4",          # Cyan
+        "bg_dark": "#0a0a12",
+        "bg_light": "#161625",
+        "bg_hover": "#202035",
+        "text_primary": "#f8fafc",
+        "text_secondary": "#94a3b8",
+        "success": "#10b981",
+        "error": "#f43f5e"
     }
 }
+
+
+def hex_to_rgb(hex_str: str) -> tuple[float, float, float]:
+    """Convert hex color to normalized RGB float tuple (0.0 to 1.0)."""
+    hex_str = hex_str.lstrip("#")
+    if len(hex_str) == 3:
+        hex_str = "".join([c * 2 for c in hex_str])
+    r = int(hex_str[0:2], 16) / 255.0
+    g = int(hex_str[2:4], 16) / 255.0
+    b = int(hex_str[4:6], 16) / 255.0
+    return r, g, b
 
 
 @dataclass
@@ -152,7 +112,7 @@ class Config:
     """VoxClip configuration."""
 
     # UI Theme Settings
-    theme: str = "glass-violet"
+    theme: str = "dark"
 
     # Whisper model settings
     model_size: str = "medium"
@@ -230,5 +190,7 @@ class Config:
                         setattr(config, key, value)
             except (json.JSONDecodeError, OSError):
                 pass
+        if config.theme not in THEMES:
+            config.theme = "dark"
         config.ensure_dirs()
         return config

@@ -23,18 +23,10 @@ except (ValueError, ImportError):
 
 from gi.repository import Gtk, Gdk, GLib, Pango  # noqa: E402
 
+from .config import hex_to_rgb
+from .icons import get_icon_image, get_icon_pixbuf
+
 log = logging.getLogger(__name__)
-
-
-def hex_to_rgb(hex_str: str) -> tuple[float, float, float]:
-    """Convert hex color to normalized RGB float tuple (0.0 to 1.0) for Cairo."""
-    hex_str = hex_str.lstrip("#")
-    if len(hex_str) == 3:
-        hex_str = "".join([c*2 for c in hex_str])
-    r = int(hex_str[0:2], 16) / 255.0
-    g = int(hex_str[2:4], 16) / 255.0
-    b = int(hex_str[4:6], 16) / 255.0
-    return r, g, b
 
 
 class OverlayState(Enum):
@@ -229,12 +221,11 @@ class OverlayWindow:
         # Cancel button — stops recording and discards audio (no transcription)
         self.rec_cancel_btn = Gtk.Button()
         self.rec_cancel_btn.set_name("rec-cancel-button")
-        self.rec_cancel_btn.set_size_request(20, 20)
+        self.rec_cancel_btn.set_size_request(24, 24)
         self.rec_cancel_btn.set_tooltip_text("Cancel recording (discard audio)")
 
-        cancel_label = Gtk.Label(label="✕")
-        cancel_label.set_name("cancel-icon-label")
-        self.rec_cancel_btn.add(cancel_label)
+        cancel_icon = get_icon_image("close", size=13, color=self._theme["text_secondary"])
+        self.rec_cancel_btn.add(cancel_icon)
 
         self.rec_cancel_btn.connect("clicked", self._on_cancel_btn_click)
         self.recording_box.pack_start(self.rec_cancel_btn, False, False, 0)
@@ -246,7 +237,7 @@ class OverlayWindow:
         self.main_box.pack_start(self.recording_box, True, True, 0)
 
         # --- 2. TRANSCRIBING PILL LAYOUT ---
-        # Format: [⟳ spinner | Transcribing... | ⚙️]
+        # Format: [spinner | Transcribing... | settings]
         self.transcribing_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
         self.transcribing_box.set_name("transcribing-box")
         self.transcribing_box.set_valign(Gtk.Align.CENTER)
@@ -267,14 +258,12 @@ class OverlayWindow:
         self.main_box.pack_start(self.transcribing_box, True, True, 0)
 
         # --- 3. DONE PILL LAYOUT ---
-        # Format: [✓ icon | "Copied" | text preview | ⚙️]
+        # Format: [icon | "Copied" | text preview | settings]
         self.done_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
         self.done_box.set_name("done-box")
         self.done_box.set_valign(Gtk.Align.CENTER)
 
-        self.done_icon = Gtk.Label(label="✓")
-        self.done_icon.set_name("done-icon")
-        self.done_icon.set_valign(Gtk.Align.CENTER)
+        self.done_icon = get_icon_image("check", size=16, color=self._theme["success"])
         self.done_box.pack_start(self.done_icon, False, False, 4)
 
         self.done_status = Gtk.Label(label="Copied")
@@ -298,16 +287,27 @@ class OverlayWindow:
         self.history_box.set_name("history-box")
 
         history_header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
-        history_title = Gtk.Label(label="📋  History")
+        history_title_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
+        hist_title_icon = get_icon_image("history", size=15, color=self._theme["accent_color"])
+        history_title_box.pack_start(hist_title_icon, False, False, 0)
+
+        history_title = Gtk.Label(label="History")
         history_title.set_name("history-title")
         history_title.set_halign(Gtk.Align.START)
-        history_header.pack_start(history_title, True, True, 0)
+        history_title_box.pack_start(history_title, False, False, 0)
+        history_header.pack_start(history_title_box, True, True, 0)
 
         hist_settings_btn = self._create_settings_button()
         history_header.pack_end(hist_settings_btn, False, False, 0)
 
-        self.history_clear_btn = Gtk.Button(label="🗑 Clear All")
+        self.history_clear_btn = Gtk.Button()
         self.history_clear_btn.set_name("history-clear-btn")
+        clear_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=5)
+        clear_icon = get_icon_image("trash", size=12, color=self._theme["error"])
+        clear_box.pack_start(clear_icon, False, False, 0)
+        clear_label = Gtk.Label(label="Clear All")
+        clear_box.pack_start(clear_label, False, False, 0)
+        self.history_clear_btn.add(clear_box)
         self.history_clear_btn.connect("clicked", self._on_history_clear_click)
         history_header.pack_end(self.history_clear_btn, False, False, 0)
 
@@ -333,13 +333,12 @@ class OverlayWindow:
         self.main_box.pack_start(self.history_box, True, True, 0)
 
     def _create_settings_button(self) -> Gtk.Button:
-        """Create a gear ⚙ settings button."""
+        """Create a sleek vector gear settings button."""
         btn = Gtk.Button()
         btn.set_name("rec-settings-button")
-        btn.set_size_request(20, 20)
+        btn.set_size_request(24, 24)
 
-        gear = Gtk.Label(label="⚙")
-        gear.set_name("settings-gear-icon")
+        gear = get_icon_image("gear", size=13, color=self._theme["accent_color"])
         btn.add(gear)
 
         btn.connect("clicked", self._on_settings_click)
@@ -355,6 +354,7 @@ class OverlayWindow:
         accent_rgb = theme["accent_rgb"]
         accent_2 = theme["accent_2"]
         accent_3 = theme["accent_3"]
+        bg_light = theme["bg_light"]
         text_primary = theme["text_primary"]
         text_secondary = theme["text_secondary"]
         success = theme["success"]
@@ -376,21 +376,22 @@ class OverlayWindow:
         }}
 
         #shortcut-label {{
-            color: rgba(255, 255, 255, 0.45);
+            color: {text_secondary};
             font-size: 10px;
             font-family: "JetBrains Mono", "Fira Code", "SF Mono", monospace;
-            background-color: rgba(255, 255, 255, 0.08);
+            background-color: {bg_light};
+            border: 1px solid {border_color_rgba};
             padding: 2px 6px;
             border-radius: 5px;
         }}
 
         #model-label {{
-            color: rgba(255, 255, 255, 0.75);
+            color: {text_primary};
             font-size: 10px;
             font-weight: bold;
             font-family: "JetBrains Mono", "Fira Code", "SF Mono", monospace;
-            background-color: rgba({accent_rgb}, 0.22);
-            border: 1px solid rgba({accent_rgb}, 0.45);
+            background-color: rgba({accent_rgb}, 0.16);
+            border: 1px solid rgba({accent_rgb}, 0.36);
             padding: 2px 6px;
             border-radius: 5px;
         }}
@@ -399,7 +400,7 @@ class OverlayWindow:
             color: {text_secondary};
             font-size: 11px;
             font-style: italic;
-            opacity: 0.7;
+            opacity: 0.8;
         }}
 
         #transcribing-label {{
@@ -418,7 +419,7 @@ class OverlayWindow:
             color: {success};
             font-size: 12px;
             font-weight: 600;
-            background: rgba({accent_rgb}, 0.15);
+            background: rgba({accent_rgb}, 0.14);
             padding: 2px 6px;
             border-radius: 6px;
         }}
@@ -443,16 +444,18 @@ class OverlayWindow:
             padding: 8px 12px;
             border-radius: 8px;
             margin: 2px 0;
-            background-color: rgba(255, 255, 255, 0.03);
+            background-color: {bg_light};
+            border: 1px solid {border_color_rgba};
             transition: background-color 150ms ease;
         }}
 
         #history-list row:hover {{
-            background-color: rgba({accent_rgb}, 0.15);
+            background-color: rgba({accent_rgb}, 0.12);
+            border-color: {accent_2};
         }}
 
         #history-list row:selected {{
-            background-color: rgba({accent_rgb}, 0.25);
+            background-color: rgba({accent_rgb}, 0.20);
         }}
 
         .history-text {{
@@ -469,17 +472,17 @@ class OverlayWindow:
             color: {accent_color};
         }}
 
-        /* Remodeled beautiful Stop Button */
+        /* Clean modern Stop Button */
         #rec-stop-button {{
             color: {error};
             background: rgba({accent_rgb}, 0.12);
-            border: 1px solid rgba({accent_rgb}, 0.45);
-            border-radius: 5px;
+            border: 1px solid rgba({accent_rgb}, 0.35);
+            border-radius: 6px;
             padding: 0px;
             margin: 0;
-            min-width: 20px;
-            min-height: 20px;
-            transition: all 200ms ease;
+            min-width: 24px;
+            min-height: 24px;
+            transition: all 120ms ease;
             box-shadow: none;
         }}
 
@@ -487,28 +490,28 @@ class OverlayWindow:
             color: #ffffff;
             background: {error};
             border-color: {error};
-            box-shadow: 0 0 8px {error};
+            box-shadow: none;
         }}
 
         /* Cancel button — discard recording without transcribing */
         #rec-cancel-button {{
             color: {text_secondary};
             background: transparent;
-            border: 1px solid rgba(255, 255, 255, 0.15);
-            border-radius: 5px;
+            border: 1px solid transparent;
+            border-radius: 6px;
             padding: 0px;
             margin: 0;
-            min-width: 20px;
-            min-height: 20px;
-            transition: all 200ms ease;
+            min-width: 24px;
+            min-height: 24px;
+            transition: all 120ms ease;
             box-shadow: none;
         }}
 
         #rec-cancel-button:hover {{
-            color: #ffffff;
-            background: {error};
-            border-color: {error};
-            box-shadow: 0 0 8px {error};
+            color: {error};
+            background: rgba(244, 63, 94, 0.12);
+            border-color: rgba(244, 63, 94, 0.25);
+            box-shadow: none;
         }}
 
         #cancel-icon-label {{
@@ -516,25 +519,24 @@ class OverlayWindow:
             font-weight: bold;
         }}
 
-        /* Remodeled beautiful Settings Button matching Stop button */
+        /* Clean modern Settings Button */
         #rec-settings-button {{
             color: {accent_color};
-            background: rgba({accent_rgb}, 0.12);
-            border: 1px solid rgba({accent_rgb}, 0.45);
-            border-radius: 5px;
+            background: transparent;
+            border: 1px solid transparent;
+            border-radius: 6px;
             padding: 0px;
             margin: 0;
-            min-width: 20px;
-            min-height: 20px;
-            transition: all 200ms ease;
+            min-width: 24px;
+            min-height: 24px;
+            transition: all 120ms ease;
             box-shadow: none;
         }}
 
         #rec-settings-button:hover {{
-            color: #ffffff;
-            background: {accent_color};
-            border-color: {accent_color};
-            box-shadow: 0 0 8px {accent_color};
+            background: rgba({accent_rgb}, 0.16);
+            border-color: rgba({accent_rgb}, 0.30);
+            box-shadow: none;
         }}
 
         #settings-gear-icon {{
@@ -543,26 +545,26 @@ class OverlayWindow:
 
         /* Row action buttons (copy / delete) */
         .row-action-btn {{
-            min-width: 26px;
-            min-height: 26px;
-            padding: 2px 5px;
+            min-width: 28px;
+            min-height: 28px;
+            padding: 3px 6px;
             font-size: 12px;
             background-color: transparent;
             border: 1px solid transparent;
-            border-radius: 5px;
+            border-radius: 6px;
             color: {text_secondary};
-            transition: all 150ms ease;
+            transition: all 120ms ease;
             box-shadow: none;
         }}
 
         .row-action-btn:hover {{
-            border-color: rgba({accent_rgb}, 0.4);
-            background-color: rgba({accent_rgb}, 0.15);
+            border-color: rgba({accent_rgb}, 0.35);
+            background-color: rgba({accent_rgb}, 0.12);
             color: {text_primary};
         }}
 
         #row-delete-btn:hover {{
-            border-color: rgba(244, 63, 94, 0.4);
+            border-color: rgba(244, 63, 94, 0.30);
             background-color: rgba(244, 63, 94, 0.12);
             color: {error};
         }}
@@ -570,19 +572,19 @@ class OverlayWindow:
         /* Clear All button in history header */
         #history-clear-btn {{
             font-size: 11px;
+            font-weight: 500;
             color: {error};
             background-color: transparent;
-            background-image: none;
-            border: 1px solid rgba(244, 63, 94, 0.35);
-            border-radius: 5px;
-            padding: 2px 8px;
-            min-height: 20px;
+            border: 1px solid rgba(244, 63, 94, 0.30);
+            border-radius: 6px;
+            padding: 2px 10px;
+            min-height: 24px;
             box-shadow: none;
-            transition: all 150ms ease;
+            transition: all 120ms ease;
         }}
 
         #history-clear-btn:hover {{
-            background-color: rgba(244, 63, 94, 0.15);
+            background-color: rgba(244, 63, 94, 0.12);
             border-color: {error};
         }}
         """
@@ -678,8 +680,11 @@ class OverlayWindow:
         display_text = text if len(text) <= 45 else text[:42] + "..."
         lang_tag = f"{language.upper()}" if language else "Copied"
         
+        self.done_icon.set_from_pixbuf(get_icon_pixbuf("check", size=16, color=self._theme["success"]))
         self.done_text.set_text(f'"{display_text}"')
         self.done_status.set_text(lang_tag)
+        r, g, b = hex_to_rgb(self._theme["success"])
+        self.done_status.override_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(r, g, b, 1.0))
 
         self._enforce_size(420, 54)
 
@@ -700,10 +705,10 @@ class OverlayWindow:
         self.done_box.show_all()
         self.history_box.hide()
 
-        self.done_icon.set_text("✗")
-        self.done_icon.override_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(0.95, 0.25, 0.38, 1.0))
+        self.done_icon.set_from_pixbuf(get_icon_pixbuf("error", size=16, color=self._theme["error"]))
+        r, g, b = hex_to_rgb(self._theme["error"])
         self.done_status.set_text("Error")
-        self.done_status.override_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(0.95, 0.25, 0.38, 1.0))
+        self.done_status.override_color(Gtk.StateFlags.NORMAL, Gdk.RGBA(r, g, b, 1.0))
         self.done_text.set_text(message)
 
         self._enforce_size(420, 54)
@@ -765,8 +770,7 @@ class OverlayWindow:
         self.spinner.stop()
         
         # Reset done elements style
-        self.done_icon.set_text("✓")
-        self.done_icon.override_color(Gtk.StateFlags.NORMAL, None)
+        self.done_icon.set_from_pixbuf(get_icon_pixbuf("check", size=16, color=self._theme["success"]))
         self.done_status.override_color(Gtk.StateFlags.NORMAL, None)
         self.window.hide()
 
@@ -931,7 +935,8 @@ class OverlayWindow:
         btn_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=4)
         btn_box.set_valign(Gtk.Align.CENTER)
 
-        copy_btn = Gtk.Button(label="⧉")
+        copy_btn = Gtk.Button()
+        copy_btn.set_image(get_icon_image("copy", size=14, color=self._theme["text_secondary"]))
         copy_btn.set_name("row-copy-btn")
         copy_btn.set_tooltip_text("Copy to clipboard")
         copy_btn.get_style_context().add_class("row-action-btn")
@@ -939,7 +944,8 @@ class OverlayWindow:
         copy_btn.connect("clicked", lambda _b, i=eid: self._on_row_copy(i))
         btn_box.pack_start(copy_btn, False, False, 0)
 
-        del_btn = Gtk.Button(label="🗑")
+        del_btn = Gtk.Button()
+        del_btn.set_image(get_icon_image("trash", size=14, color=self._theme["text_secondary"]))
         del_btn.set_name("row-delete-btn")
         del_btn.set_tooltip_text("Delete entry")
         del_btn.get_style_context().add_class("row-action-btn")
