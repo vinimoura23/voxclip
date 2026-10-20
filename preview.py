@@ -6,6 +6,16 @@ Run directly without affecting the background daemon:
 """
 
 import sys
+import os
+
+# Auto-reexec inside the VoxClip virtualenv if system python is missing dependencies like cairo
+VENV_PYTHON = os.path.expanduser("~/.local/share/voxclip/.venv/bin/python")
+if os.path.exists(VENV_PYTHON) and sys.executable != VENV_PYTHON:
+    try:
+        import cairo
+    except ImportError:
+        os.execv(VENV_PYTHON, [VENV_PYTHON] + sys.argv)
+
 import gi
 
 gi.require_version("Gtk", "3.0")
