@@ -60,6 +60,17 @@ SVG_TEMPLATES = {
         <line x1="12" y1="19" x2="12" y2="23"></line>
         <line x1="8" y1="23" x2="16" y2="23"></line>
     </svg>""",
+
+    # Clean geometric Stop button (rounded square)
+    "stop": """<svg xmlns="http://www.w3.org/2000/svg" width="{size}" height="{size}" viewBox="0 0 24 24" fill="{color}" stroke="{color}" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="5" y="5" width="14" height="14" rx="2.5" ry="2.5"></rect>
+    </svg>""",
+
+    # Clean Pause button
+    "pause": """<svg xmlns="http://www.w3.org/2000/svg" width="{size}" height="{size}" viewBox="0 0 24 24" fill="{color}" stroke="{color}" stroke-width="1" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="6" y="4" width="4" height="16" rx="1.5" ry="1.5"></rect>
+        <rect x="14" y="4" width="4" height="16" rx="1.5" ry="1.5"></rect>
+    </svg>""",
 }
 
 

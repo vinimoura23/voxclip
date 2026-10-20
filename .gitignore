@@ -9,6 +9,7 @@ build/
 *.egg
 
 # Virtual environment
+.venv
 .venv/
 venv/
 env/

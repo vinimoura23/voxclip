@@ -86,12 +86,13 @@ class OverlayWindow:
         # History → Settings back-navigation
         self._from_settings: bool = False
         self._settings_window_ref = None
+        self._settings_buttons: list[Gtk.Button] = []
 
         # Load and cache config — refreshed only on reload_theme() to avoid
         # reading the config file from disk on every animation frame.
         from .config import Config, THEMES
         self._config = Config.load()
-        self._theme = THEMES.get(self._config.theme, THEMES["glass-violet"])
+        self._theme = THEMES.get(self._config.theme, THEMES["dark"])
 
         screen = Gdk.Screen.get_default()
         screen_width = screen.get_width() if screen else 1920
@@ -207,32 +208,31 @@ class OverlayWindow:
         self.timer_label.set_valign(Gtk.Align.CENTER)
         self.recording_box.pack_start(self.timer_label, False, False, 4)
 
-        # Remodeled beautiful rectangular stop button
+        # Stop button (finish recording and transcribe)
         self.rec_stop_btn = Gtk.Button()
         self.rec_stop_btn.set_name("rec-stop-button")
-        self.rec_stop_btn.set_size_request(20, 20)
-        
-        stop_image = Gtk.Image.new_from_icon_name("media-playback-stop-symbolic", Gtk.IconSize.MENU)
+        self.rec_stop_btn.set_size_request(26, 26)
+        self.rec_stop_btn.set_tooltip_text("Finish recording and transcribe")
+        stop_image = get_icon_image("stop", size=13, color=self._theme["error"])
         self.rec_stop_btn.add(stop_image)
-        
         self.rec_stop_btn.connect("clicked", self._on_stop_click)
-        self.recording_box.pack_start(self.rec_stop_btn, False, False, 4)
+        self.recording_box.pack_start(self.rec_stop_btn, False, False, 2)
 
         # Cancel button — stops recording and discards audio (no transcription)
         self.rec_cancel_btn = Gtk.Button()
         self.rec_cancel_btn.set_name("rec-cancel-button")
-        self.rec_cancel_btn.set_size_request(24, 24)
+        self.rec_cancel_btn.set_size_request(26, 26)
         self.rec_cancel_btn.set_tooltip_text("Cancel recording (discard audio)")
 
         cancel_icon = get_icon_image("close", size=13, color=self._theme["text_secondary"])
         self.rec_cancel_btn.add(cancel_icon)
 
         self.rec_cancel_btn.connect("clicked", self._on_cancel_btn_click)
-        self.recording_box.pack_start(self.rec_cancel_btn, False, False, 0)
+        self.recording_box.pack_start(self.rec_cancel_btn, False, False, 2)
 
-        # Custom themed Settings button
+        # Settings button
         rec_settings_btn = self._create_settings_button()
-        self.recording_box.pack_start(rec_settings_btn, False, False, 4)
+        self.recording_box.pack_start(rec_settings_btn, False, False, 2)
 
         self.main_box.pack_start(self.recording_box, True, True, 0)
 
@@ -288,8 +288,8 @@ class OverlayWindow:
 
         history_header = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
         history_title_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
-        hist_title_icon = get_icon_image("history", size=15, color=self._theme["accent_color"])
-        history_title_box.pack_start(hist_title_icon, False, False, 0)
+        self.hist_title_icon = get_icon_image("history", size=15, color=self._theme["accent_color"])
+        history_title_box.pack_start(self.hist_title_icon, False, False, 0)
 
         history_title = Gtk.Label(label="History")
         history_title.set_name("history-title")
@@ -297,19 +297,21 @@ class OverlayWindow:
         history_title_box.pack_start(history_title, False, False, 0)
         history_header.pack_start(history_title_box, True, True, 0)
 
-        hist_settings_btn = self._create_settings_button()
-        history_header.pack_end(hist_settings_btn, False, False, 0)
-
+        # Clear All button
         self.history_clear_btn = Gtk.Button()
         self.history_clear_btn.set_name("history-clear-btn")
         clear_box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=5)
-        clear_icon = get_icon_image("trash", size=12, color=self._theme["error"])
-        clear_box.pack_start(clear_icon, False, False, 0)
+        self.hist_clear_icon = get_icon_image("trash", size=12, color=self._theme["text_secondary"])
+        clear_box.pack_start(self.hist_clear_icon, False, False, 0)
         clear_label = Gtk.Label(label="Clear All")
         clear_box.pack_start(clear_label, False, False, 0)
         self.history_clear_btn.add(clear_box)
         self.history_clear_btn.connect("clicked", self._on_history_clear_click)
-        history_header.pack_end(self.history_clear_btn, False, False, 0)
+        history_header.pack_end(self.history_clear_btn, False, False, 4)
+
+        # Settings button in history header
+        hist_settings_btn = self._create_settings_button()
+        history_header.pack_end(hist_settings_btn, False, False, 0)
 
         self.history_box.pack_start(history_header, False, False, 4)
 
@@ -336,12 +338,14 @@ class OverlayWindow:
         """Create a sleek vector gear settings button."""
         btn = Gtk.Button()
         btn.set_name("rec-settings-button")
-        btn.set_size_request(24, 24)
+        btn.set_size_request(26, 26)
+        btn.set_tooltip_text("Settings")
 
-        gear = get_icon_image("gear", size=13, color=self._theme["accent_color"])
+        gear = get_icon_image("gear", size=13, color=self._theme["text_secondary"])
         btn.add(gear)
 
         btn.connect("clicked", self._on_settings_click)
+        self._settings_buttons.append(btn)
         return btn
 
     def _load_css(self):
@@ -354,7 +358,9 @@ class OverlayWindow:
         accent_rgb = theme["accent_rgb"]
         accent_2 = theme["accent_2"]
         accent_3 = theme["accent_3"]
+        bg_dark = theme.get("bg_dark", "#0c0d12")
         bg_light = theme["bg_light"]
+        bg_hover = theme.get("bg_hover", "#252632")
         text_primary = theme["text_primary"]
         text_secondary = theme["text_secondary"]
         success = theme["success"]
@@ -386,12 +392,12 @@ class OverlayWindow:
         }}
 
         #model-label {{
-            color: {text_primary};
+            color: {text_secondary};
             font-size: 10px;
-            font-weight: bold;
+            font-weight: 600;
             font-family: "JetBrains Mono", "Fira Code", "SF Mono", monospace;
-            background-color: rgba({accent_rgb}, 0.16);
-            border: 1px solid rgba({accent_rgb}, 0.36);
+            background-color: {bg_light};
+            border: 1px solid {border_color_rgba};
             padding: 2px 6px;
             border-radius: 5px;
         }}
@@ -419,8 +425,8 @@ class OverlayWindow:
             color: {success};
             font-size: 12px;
             font-weight: 600;
-            background: rgba({accent_rgb}, 0.14);
-            padding: 2px 6px;
+            background: rgba(16, 185, 129, 0.12);
+            padding: 2px 8px;
             border-radius: 6px;
         }}
 
@@ -433,7 +439,7 @@ class OverlayWindow:
         #history-title {{
             color: {text_primary};
             font-size: 15px;
-            font-weight: 700;
+            font-weight: 600;
         }}
 
         #history-list {{
@@ -443,19 +449,19 @@ class OverlayWindow:
         #history-list row {{
             padding: 8px 12px;
             border-radius: 8px;
-            margin: 2px 0;
+            margin: 3px 0;
             background-color: {bg_light};
             border: 1px solid {border_color_rgba};
-            transition: background-color 150ms ease;
+            transition: all 120ms ease;
         }}
 
         #history-list row:hover {{
-            background-color: rgba({accent_rgb}, 0.12);
+            background-color: {bg_hover};
             border-color: {accent_2};
         }}
 
         #history-list row:selected {{
-            background-color: rgba({accent_rgb}, 0.20);
+            background-color: rgba({accent_rgb}, 0.15);
         }}
 
         .history-text {{
@@ -474,43 +480,39 @@ class OverlayWindow:
 
         /* Clean modern Stop Button */
         #rec-stop-button {{
-            color: {error};
-            background: rgba({accent_rgb}, 0.12);
-            border: 1px solid rgba({accent_rgb}, 0.35);
+            background: {bg_light};
+            border: 1px solid {border_color_rgba};
             border-radius: 6px;
             padding: 0px;
             margin: 0;
-            min-width: 24px;
-            min-height: 24px;
+            min-width: 26px;
+            min-height: 26px;
             transition: all 120ms ease;
             box-shadow: none;
         }}
 
         #rec-stop-button:hover {{
-            color: #ffffff;
-            background: {error};
+            background: rgba(244, 63, 94, 0.16);
             border-color: {error};
             box-shadow: none;
         }}
 
         /* Cancel button — discard recording without transcribing */
         #rec-cancel-button {{
-            color: {text_secondary};
-            background: transparent;
-            border: 1px solid transparent;
+            background: {bg_light};
+            border: 1px solid {border_color_rgba};
             border-radius: 6px;
             padding: 0px;
             margin: 0;
-            min-width: 24px;
-            min-height: 24px;
+            min-width: 26px;
+            min-height: 26px;
             transition: all 120ms ease;
             box-shadow: none;
         }}
 
         #rec-cancel-button:hover {{
-            color: {error};
             background: rgba(244, 63, 94, 0.12);
-            border-color: rgba(244, 63, 94, 0.25);
+            border-color: rgba(244, 63, 94, 0.35);
             box-shadow: none;
         }}
 
@@ -521,21 +523,20 @@ class OverlayWindow:
 
         /* Clean modern Settings Button */
         #rec-settings-button {{
-            color: {accent_color};
-            background: transparent;
-            border: 1px solid transparent;
+            background: {bg_light};
+            border: 1px solid {border_color_rgba};
             border-radius: 6px;
             padding: 0px;
             margin: 0;
-            min-width: 24px;
-            min-height: 24px;
+            min-width: 26px;
+            min-height: 26px;
             transition: all 120ms ease;
             box-shadow: none;
         }}
 
         #rec-settings-button:hover {{
-            background: rgba({accent_rgb}, 0.16);
-            border-color: rgba({accent_rgb}, 0.30);
+            background: {bg_hover};
+            border-color: {accent_2};
             box-shadow: none;
         }}
 
@@ -545,12 +546,12 @@ class OverlayWindow:
 
         /* Row action buttons (copy / delete) */
         .row-action-btn {{
-            min-width: 28px;
-            min-height: 28px;
-            padding: 3px 6px;
+            min-width: 26px;
+            min-height: 26px;
+            padding: 0px;
             font-size: 12px;
-            background-color: transparent;
-            border: 1px solid transparent;
+            background-color: {bg_light};
+            border: 1px solid {border_color_rgba};
             border-radius: 6px;
             color: {text_secondary};
             transition: all 120ms ease;
@@ -558,13 +559,19 @@ class OverlayWindow:
         }}
 
         .row-action-btn:hover {{
-            border-color: rgba({accent_rgb}, 0.35);
-            background-color: rgba({accent_rgb}, 0.12);
+            background-color: {bg_hover};
+            border-color: {border_color_rgba};
+            color: {text_primary};
+        }}
+
+        #row-copy-btn:hover {{
+            background-color: {bg_hover};
+            border-color: {accent_2};
             color: {text_primary};
         }}
 
         #row-delete-btn:hover {{
-            border-color: rgba(244, 63, 94, 0.30);
+            border-color: rgba(244, 63, 94, 0.35);
             background-color: rgba(244, 63, 94, 0.12);
             color: {error};
         }}
@@ -573,19 +580,20 @@ class OverlayWindow:
         #history-clear-btn {{
             font-size: 11px;
             font-weight: 500;
-            color: {error};
-            background-color: transparent;
-            border: 1px solid rgba(244, 63, 94, 0.30);
+            color: {text_secondary};
+            background-color: {bg_light};
+            border: 1px solid {border_color_rgba};
             border-radius: 6px;
             padding: 2px 10px;
-            min-height: 24px;
+            min-height: 26px;
             box-shadow: none;
             transition: all 120ms ease;
         }}
 
         #history-clear-btn:hover {{
-            background-color: rgba(244, 63, 94, 0.12);
-            border-color: {error};
+            color: {error};
+            background-color: rgba(244, 63, 94, 0.10);
+            border-color: rgba(244, 63, 94, 0.35);
         }}
         """
 
@@ -605,8 +613,37 @@ class OverlayWindow:
         log.info("Reloading dynamic theme stylesheet for overlay...")
         from .config import Config, THEMES
         self._config = Config.load()
-        self._theme = THEMES.get(self._config.theme, THEMES["glass-violet"])
+        self._theme = THEMES.get(self._config.theme, THEMES["dark"])
         self._load_css()
+
+        # Update button icons to active theme colors
+        stop_img = get_icon_image("stop", size=13, color=self._theme["error"])
+        for child in self.rec_stop_btn.get_children():
+            self.rec_stop_btn.remove(child)
+        self.rec_stop_btn.add(stop_img)
+        self.rec_stop_btn.show_all()
+
+        cancel_img = get_icon_image("close", size=13, color=self._theme["text_secondary"])
+        for child in self.rec_cancel_btn.get_children():
+            self.rec_cancel_btn.remove(child)
+        self.rec_cancel_btn.add(cancel_img)
+        self.rec_cancel_btn.show_all()
+
+        # Update gear icons on all settings buttons
+        for s_btn in self._settings_buttons:
+            for child in s_btn.get_children():
+                s_btn.remove(child)
+            s_btn.add(get_icon_image("gear", size=13, color=self._theme["text_secondary"]))
+            s_btn.show_all()
+
+        # Update history header icons
+        if hasattr(self, "hist_title_icon") and self.hist_title_icon:
+            self.hist_title_icon.set_from_pixbuf(get_icon_pixbuf("history", size=15, color=self._theme["accent_color"]))
+        if hasattr(self, "hist_clear_icon") and self.hist_clear_icon:
+            self.hist_clear_icon.set_from_pixbuf(get_icon_pixbuf("trash", size=12, color=self._theme["text_secondary"]))
+
+        self.done_icon.set_from_pixbuf(get_icon_pixbuf("check", size=16, color=self._theme["success"]))
+
         # Immediately queue redrawing for Cairo components to update gradients
         self.mic_drawing.queue_draw()
         self.waveform_drawing.queue_draw()
@@ -791,10 +828,9 @@ class OverlayWindow:
     # --- Drawing ---
 
     def _draw_mic_indicator(self, widget, cr):
-        """Draw the pulsing microphone indicator using dynamic theme colors."""
+        """Draw the pulsing microphone indicator using dynamic theme error color."""
         theme = self._theme
-        accent_color = theme["accent_color"]
-        r_acc, g_acc, b_acc = hex_to_rgb(accent_color)
+        r_err, g_err, b_err = hex_to_rgb(theme.get("error", "#ef4444"))
 
         w = widget.get_allocated_width()
         h = widget.get_allocated_height()
@@ -805,18 +841,18 @@ class OverlayWindow:
         pulse = 0.6 + 0.4 * math.sin(self._pulse_phase)
         outer_radius = radius + 3 * pulse
 
-        # Outer glow using active theme accent color
-        cr.set_source_rgba(r_acc, g_acc, b_acc, 0.25 * pulse)
+        # Outer glow using active theme error color
+        cr.set_source_rgba(r_err, g_err, b_err, 0.28 * pulse)
         cr.arc(cx, cy, outer_radius, 0, 2 * math.pi)
         cr.fill()
 
         # Main circle
-        cr.set_source_rgba(0.95, 0.25, 0.25, 0.8 + 0.2 * pulse)
+        cr.set_source_rgba(r_err, g_err, b_err, 0.85 + 0.15 * pulse)
         cr.arc(cx, cy, radius * 0.7, 0, 2 * math.pi)
         cr.fill()
 
         # Inner dot
-        cr.set_source_rgba(1.0, 1.0, 1.0, 0.9)
+        cr.set_source_rgba(1.0, 1.0, 1.0, 0.95)
         cr.arc(cx, cy, radius * 0.25, 0, 2 * math.pi)
         cr.fill()
 

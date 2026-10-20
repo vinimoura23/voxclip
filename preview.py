@@ -28,7 +28,7 @@ from voxclip.config import Config, THEMES
 from voxclip.settings import SettingsWindow
 from voxclip.overlay import OverlayWindow, OverlayState
 from voxclip.history import HistoryEntry
-from voxclip.icons import get_icon_image
+from voxclip.icons import get_icon_image, get_icon_pixbuf
 
 
 SAMPLE_HISTORY = [
@@ -164,10 +164,13 @@ class PreviewController:
         theme = THEMES[self.current_theme_id]
         self.overlay._theme = theme
         self.overlay._config.theme = self.current_theme_id
-        self.overlay._load_css()
-        if hasattr(self.overlay, "mic_drawing"):
-            self.overlay.mic_drawing.queue_draw()
-            self.overlay.waveform_drawing.queue_draw()
+        self.overlay.reload_theme()
+
+        # Refresh currently visible screen
+        if self.overlay._state == OverlayState.DONE:
+            self.show_done_screen()
+        elif self.overlay._state == OverlayState.HISTORY:
+            self.show_history_screen()
 
     def _on_theme_combo_changed(self, combo):
         tid = combo.get_active_id()

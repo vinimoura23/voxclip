@@ -47,9 +47,9 @@ THEMES = {
         "bg_color_hex": "#12131a",
         "bg_color_rgba": "rgba(18, 19, 26, 0.94)",
         "border_color_rgba": "rgba(255, 255, 255, 0.10)",
-        "accent_color": "#6366f1",      # Indigo
-        "accent_rgb": "99, 102, 241",
-        "accent_2": "#818cf8",          # Lighter Indigo
+        "accent_color": "#3b82f6",      # Electric Blue
+        "accent_rgb": "59, 130, 246",
+        "accent_2": "#60a5fa",          # Light Blue
         "accent_3": "#38bdf8",          # Sky Blue
         "bg_dark": "#0c0d12",
         "bg_light": "#1a1b24",
@@ -64,10 +64,10 @@ THEMES = {
         "bg_color_hex": "#f8fafc",
         "bg_color_rgba": "rgba(248, 250, 252, 0.96)",
         "border_color_rgba": "rgba(15, 23, 42, 0.12)",
-        "accent_color": "#4f46e5",      # Deep Indigo
-        "accent_rgb": "79, 70, 229",
-        "accent_2": "#6366f1",          # Indigo
-        "accent_3": "#0284c7",          # Sky Blue
+        "accent_color": "#2563eb",      # Royal Blue
+        "accent_rgb": "37, 99, 235",
+        "accent_2": "#3b82f6",          # Sky Blue
+        "accent_3": "#0284c7",          # Deep Sky
         "bg_dark": "#e2e8f0",
         "bg_light": "#ffffff",
         "bg_hover": "#f1f5f9",
